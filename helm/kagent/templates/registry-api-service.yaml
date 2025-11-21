@@ -1,0 +1,19 @@
+{{- if .Values.agentRegistry.api.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kagent.fullname" . }}-registry-api
+  namespace: {{ include "kagent.namespace" . }}
+  labels:
+    {{- include "kagent.controller.labels" . | nindent 4 }}
+    app.kubernetes.io/component: registry-api
+spec:
+  type: {{ .Values.agentRegistry.api.service.type }}
+  ports:
+    - port: {{ .Values.agentRegistry.api.service.port }}
+      targetPort: registry-api
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "kagent.controller.selectorLabels" . | nindent 4 }}
+{{- end }}

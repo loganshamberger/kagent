@@ -61,6 +61,10 @@ spec:
             - {{ .Values.controller.streaming.timeout | quote }}
             - -database-type
             - {{ .Values.database.type }}
+            {{- if .Values.agentRegistry.api.enabled }}
+            - -registry-api-address
+            - ":{{ .Values.agentRegistry.api.port }}"
+            {{- end }}
             {{- if eq .Values.database.type "sqlite" }}
             - -sqlite-database-path
             - /sqlite-volume/{{ .Values.database.sqlite.databaseName }}
@@ -118,6 +122,11 @@ spec:
             - name: http
               containerPort: {{ .Values.controller.service.ports.targetPort }}
               protocol: TCP
+            {{- if .Values.agentRegistry.api.enabled }}
+            - name: registry-api
+              containerPort: {{ .Values.agentRegistry.api.port }}
+              protocol: TCP
+            {{- end }}
           startupProbe:
             httpGet:
               path: /health

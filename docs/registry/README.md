@@ -20,7 +20,7 @@ The Agent Registry is a Kubernetes-native system for discovering, cataloging, an
 
 | Document | Description | Status |
 |----------|-------------|--------|
-| [Oracle Review](./oracle-review.md) | Initial plan review with technical recommendations | ✅ Complete |
+| [Architecture Review](./architecture-review.md) | Initial plan review with technical recommendations | ✅ Complete |
 | [Phase 2 Plan](./phase2-discovery-api.md) | Discovery REST API implementation guide | ✅ Complete |
 
 ### Implementation Guides
@@ -446,7 +446,7 @@ kagent_registry_api_latency_seconds{endpoint}
 
 ### Internal Documentation
 - [AGENTS.md](../../AGENTS.md) - Development guide
-- [Oracle Review](./oracle-review.md) - Initial plan review
+- [Architecture Review](./architecture-review.md) - Initial plan review
 - [Phase 2 Plan](./phase2-discovery-api.md) - REST API design
 
 ### Kagent Codebase
@@ -464,9 +464,49 @@ kagent_registry_api_latency_seconds{endpoint}
 
 ## Status & Next Steps
 
+### Current Implementation Status
+**As of 2025-11-21**
+
+The Agent Registry is currently in active development (Alpha stage).
+
+#### Completed Functionality
+- **CRDs**: The core Custom Resource Definitions are implemented in `go/api/v1alpha1/`:
+  - `AgentRegistry`: Configures discovery scope and options.
+  - `AgentCard`: Represents a discovered agent and its capabilities.
+- **Controller**: The `AgentRegistry` controller is scaffolded and contains the basic reconciliation logic (`go/internal/controller/agentregistry_controller.go`).
+- **Design**: Detailed architectural plans and API specifications are complete and approved (Phase 1 & Phase 2).
+
+#### Work In Progress / To Do
+The following components need to be implemented to complete Phase 2:
+
+1. **Discovery Logic**:
+   - Implement the `Discovery Watcher` to actively scan for Services/Pods with the `kagent.io/register-to-registry` annotation.
+   - Implement `A2A Card Generation` to automatically create `AgentCard` resources from discovered services.
+
+2. **REST API (Phase 2)**:
+   - Implement `go/internal/httpserver/handlers/agentcards.go`.
+   - Add endpoints:
+     - `GET /api/agentcards` (List/Filter)
+     - `GET /api/agentcards/{ns}/{name}` (Get)
+     - `GET /api/agentcards/{ns}/{name}/a2a` (A2A Format)
+   - Integrate with the main HTTP server in `server.go`.
+
+3. **Security (Phase 3)**:
+   - Implement stricter RBAC for cross-namespace access.
+   - Add authentication checks for external agent registration.
+
+4. **Testing**:
+   - Write unit tests for the new handlers.
+   - Create E2E tests for the full discovery flow in Kind.
+
+### Immediate Next Steps
+1. Implement the `AgentCardsHandler` in `go/internal/httpserver/handlers/`.
+2. Wire up the API routes in `server.go`.
+3. Verify the A2A format generation against the spec.
+
 ### Current Status
 - ✅ Feature branch created: `agent-registry`
-- ✅ Oracle review complete
+- ✅ Architecture review complete
 - ✅ Phase 1 plan detailed
 - ✅ Phase 2 plan detailed
 - ⏭️ Begin Phase 1 implementation

@@ -1,5 +1,5 @@
 # Phase 2 Planning Summary
-## Oracle Analysis & Recommendations
+## Technical Analysis & Recommendations
 
 **Date**: 2025-11-10  
 **Feature Branch**: `agent-registry` (local)  
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The oracle has analyzed the kagent codebase and provided detailed recommendations for **Phase 2: Discovery REST API** implementation. Phase 1 (CRDs + Controller) appears to be in progress with initial implementations already present.
+The architecture team has analyzed the kagent codebase and provided detailed recommendations for **Phase 2: Discovery REST API** implementation. Phase 1 (CRDs + Controller) appears to be in progress with initial implementations already present.
 
 ### Key Findings
 
@@ -27,7 +27,7 @@ The oracle has analyzed the kagent codebase and provided detailed recommendation
 
 ---
 
-## Oracle-Recommended Phase 2 Approach
+## Architect-Recommended Phase 2 Approach
 
 ### Core Principles
 
@@ -51,7 +51,7 @@ The oracle has analyzed the kagent codebase and provided detailed recommendation
 
 ---
 
-## API Design (Oracle-Approved)
+## API Design (Architect-Approved)
 
 ### Endpoints
 
@@ -161,7 +161,7 @@ See full implementation in [phase2-discovery-api.md](./phase2-discovery-api.md#4
 
 ---
 
-## Performance Strategy (Oracle-Validated)
+## Performance Strategy (Validated)
 
 ### Current Design (Good for <5000 cards)
 
@@ -251,7 +251,7 @@ Check(h.Authorizer, r, auth.Resource{
 
 ---
 
-## Effort Estimate (Oracle-Validated)
+## Effort Estimate (Validated)
 
 | Task | Complexity | Duration |
 |------|------------|----------|
@@ -325,7 +325,7 @@ RespondWithJSON(w ErrorResponseWriter, status int, data interface{})
 
 ---
 
-## Oracle's Risk Mitigation Recommendations
+## Risk Mitigation Recommendations
 
 ### 1. Large List Protection
 ```go
@@ -402,7 +402,7 @@ if format == "a2a" && agentCard.Spec.PublicCard == nil {
 ## Next Actions
 
 ### Immediate (This Week)
-1. ✅ Oracle review complete
+1. ✅ Architecture review complete
 2. ✅ Phase 2 plan documented
 3. ⏭️ Verify Phase 1 implementation status
 4. ⏭️ Review existing controller code
@@ -415,7 +415,7 @@ if format == "a2a" && agentCard.Spec.PublicCard == nil {
 4. ⏭️ Day 4: Documentation and review
 
 ### Week 4 (Phase 3 Planning)
-1. ⏭️ Oracle review for security layer
+1. ⏭️ Architecture review for security layer
 2. ⏭️ External agent registration design
 3. ⏭️ Authentication and authorization strategy
 
@@ -426,7 +426,7 @@ if format == "a2a" && agentCard.Spec.PublicCard == nil {
 | Document | Purpose | Status |
 |----------|---------|--------|
 | [README.md](./README.md) | Overview and index | ✅ Complete |
-| [oracle-review.md](./oracle-review.md) | Phase 1 review | ✅ Complete |
+| [architecture-review.md](./architecture-review.md) | Phase 1 review | ✅ Complete |
 | [phase2-discovery-api.md](./phase2-discovery-api.md) | Phase 2 detailed design | ✅ Complete |
 | **PHASE2-SUMMARY.md** | **This document** | ✅ Complete |
 | [phase1-execution-plan.md](./phase1-execution-plan.md) | Phase 1 tasks | 📝 In Progress |
@@ -434,7 +434,7 @@ if format == "a2a" && agentCard.Spec.PublicCard == nil {
 
 ---
 
-## Oracle Quotes
+## Architecture Quotes
 
 > "The feature is feasible in 7–9 weeks if you scope it to: CRDs + controller-driven discovery + A2A card generation + read-only in-cluster API with basic authn via Kubernetes, and incremental OTel hooks."
 
@@ -461,6 +461,6 @@ Phase 2 has a clear, oracle-validated implementation path that:
 ---
 
 **Created**: 2025-11-10  
-**Oracle Session**: Complete  
-**Reviewed By**: Oracle (AI Planning System)  
+**Review Session**: Complete  
+**Reviewed By**: Senior Architect  
 **Approved For**: Implementation

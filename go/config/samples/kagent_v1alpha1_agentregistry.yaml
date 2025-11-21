@@ -1,0 +1,70 @@
+# AgentRegistry Sample - Basic Configuration
+# This sample demonstrates the minimal configuration for an AgentRegistry
+# that will automatically discover agents in the same namespace.
+apiVersion: kagent.dev/v1alpha1
+kind: AgentRegistry
+metadata:
+  name: agentregistry-sample
+  namespace: default
+spec:
+  # Selector for discovering agents (optional)
+  # If not specified, all agents in the namespace will be discovered
+  selector:
+    matchLabels:
+      registry-enabled: "true"
+  
+  # Discovery configuration
+  discovery:
+    # Enable automatic discovery of agents
+    enableAutoDiscovery: true
+    
+    # Restrict discovery to specific namespaces (optional)
+    # If not specified, only the registry's namespace is scanned
+    namespaceSelector:
+      matchLabels:
+        kagent.dev/agent-enabled: "true"
+    
+    # How often to sync agent cards (default: 5m)
+    # Valid values: duration string (e.g., "1m", "5m", "1h")
+    syncInterval: "5m"
+  
+  # Observability settings
+  observability:
+    # Enable OpenTelemetry tracing and metrics
+    openTelemetryEnabled: true
+  
+  # A2A protocol version for generated agent cards (default: "0.3.0")
+  a2aVersion: "0.3.0"
+---
+# AgentRegistry Sample - Multi-Namespace Discovery
+# This sample shows how to discover agents across multiple namespaces
+apiVersion: kagent.dev/v1alpha1
+kind: AgentRegistry
+metadata:
+  name: agentregistry-multi-namespace
+  namespace: kagent
+spec:
+  discovery:
+    enableAutoDiscovery: true
+    namespaceSelector:
+      matchExpressions:
+        - key: environment
+          operator: In
+          values:
+            - production
+            - staging
+    syncInterval: "10m"
+  
+  observability:
+    openTelemetryEnabled: true
+---
+# AgentRegistry Sample - Minimal Configuration
+# This sample uses all default values
+apiVersion: kagent.dev/v1alpha1
+kind: AgentRegistry
+metadata:
+  name: agentregistry-minimal
+  namespace: default
+spec:
+  discovery:
+    enableAutoDiscovery: true

@@ -24,6 +24,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,6 +45,8 @@ import (
 	agent_translator "github.com/kagent-dev/kagent/go/internal/controller/translator/agent"
 	"github.com/kagent-dev/kagent/go/internal/httpserver"
 	common "github.com/kagent-dev/kagent/go/internal/utils"
+	registryapi "github.com/kagent-dev/kagent/go/pkg/registry/api"
+	registryhealth "github.com/kagent-dev/kagent/go/pkg/registry/health"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -65,10 +68,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	kagentv1alpha1 "github.com/kagent-dev/kagent/go/api/v1alpha1"
 	"github.com/kagent-dev/kagent/go/api/v1alpha2"
 	"github.com/kagent-dev/kagent/go/internal/controller"
 	"github.com/kagent-dev/kagent/go/internal/goruntime"
-	"github.com/kagent-dev/kmcp/api/v1alpha1"
+	kmcpv1alpha1 "github.com/kagent-dev/kmcp/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -86,7 +90,8 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kagentv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kmcpv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(v1alpha2.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 
@@ -111,6 +116,7 @@ type Config struct {
 	EnableHTTP2        bool
 	DefaultModelConfig types.NamespacedName
 	HttpServerAddr     string
+	RegistryApiAddr    string
 	WatchNamespaces    string
 	A2ABaseUrl         string
 	Database           struct {
@@ -139,6 +145,7 @@ func (cfg *Config) SetFlags(commandLine *flag.FlagSet) {
 	commandLine.StringVar(&cfg.DefaultModelConfig.Name, "default-model-config-name", "default-model-config", "The name of the default model config.")
 	commandLine.StringVar(&cfg.DefaultModelConfig.Namespace, "default-model-config-namespace", kagentNamespace, "The namespace of the default model config.")
 	commandLine.StringVar(&cfg.HttpServerAddr, "http-server-address", ":8083", "The address the HTTP server binds to.")
+	commandLine.StringVar(&cfg.RegistryApiAddr, "registry-api-address", ":8084", "The address the registry API server binds to.")
 	commandLine.StringVar(&cfg.A2ABaseUrl, "a2a-base-url", "http://127.0.0.1:8083", "The base URL of the A2A Server endpoint, as advertised to clients.")
 	commandLine.StringVar(&cfg.Database.Type, "database-type", "sqlite", "The type of the database to use. Supported values: sqlite, postgres.")
 	commandLine.StringVar(&cfg.Database.Path, "sqlite-database-path", "./kagent.db", "The path to the SQLite database file.")
@@ -394,6 +401,16 @@ func Start(getExtensionConfig GetExtensionConfig) {
 		os.Exit(1)
 	}
 
+	healthChecker := registryhealth.NewChecker(5 * time.Second)
+	if err = (&controller.AgentRegistryController{
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		HealthChecker: healthChecker,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "AgentRegistry")
+		os.Exit(1)
+	}
+
 	if err := reconcilerutils.SetupOwnerIndexes(mgr, rcnclr.GetOwnedResourceTypes()); err != nil {
 		setupLog.Error(err, "failed to setup indexes for owned resources")
 		os.Exit(1)
@@ -449,6 +466,18 @@ func Start(getExtensionConfig GetExtensionConfig) {
 		os.Exit(1)
 	}
 
+	if cfg.RegistryApiAddr != "" && cfg.RegistryApiAddr != "0" {
+		port := parsePort(cfg.RegistryApiAddr)
+		if port > 0 {
+			setupLog.Info("starting registry API server", "address", cfg.RegistryApiAddr)
+			registryServer := registryapi.NewServer(mgr.GetClient(), port)
+			if err := mgr.Add(registryServer); err != nil {
+				setupLog.Error(err, "unable to set up registry API server")
+				os.Exit(1)
+			}
+		}
+	}
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
@@ -495,6 +524,19 @@ func filterValidNamespaces(namespaces []string) []string {
 	}
 
 	return validNamespaces
+}
+
+// parsePort extracts the port number from an address string like ":8084"
+func parsePort(addr string) int {
+	if addr == "" || addr == "0" {
+		return 0
+	}
+	addr = strings.TrimPrefix(addr, ":")
+	addr = strings.TrimSpace(addr)
+	if port, err := strconv.Atoi(addr); err == nil {
+		return port
+	}
+	return 0
 }
 
 var _ manager.Runnable = &adminServer{}

@@ -21,6 +21,7 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
   - services
   verbs:
   - get
@@ -41,6 +42,7 @@ rules:
 - apiGroups:
   - kagent.dev
   resources:
+  - agentcards
   - agents
   - modelconfigs
   - remotemcpservers
@@ -55,14 +57,8 @@ rules:
 - apiGroups:
   - kagent.dev
   resources:
-  - agents/finalizers
-  - modelconfigs/finalizers
-  - remotemcpservers/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - kagent.dev
-  resources:
+  - agentcards/status
+  - agentregistries/status
   - agents/status
   - modelconfigs/status
   - remotemcpservers/status
@@ -73,8 +69,17 @@ rules:
 - apiGroups:
   - kagent.dev
   resources:
+  - agentregistries
   - mcpservers
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - kagent.dev
+  resources:
+  - agents/finalizers
+  - modelconfigs/finalizers
+  - remotemcpservers/finalizers
+  verbs:
+  - update

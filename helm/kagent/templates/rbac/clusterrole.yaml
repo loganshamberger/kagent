@@ -9,6 +9,8 @@ rules:
   - kagent.dev
   resources:
   - agents
+  - agentcards
+  - agentregistries
   - modelconfigs
   - toolservers
   - memories
@@ -33,6 +35,8 @@ rules:
   - kagent.dev
   resources:
   - agents/status
+  - agentcards/status
+  - agentregistries/status
   - modelconfigs/status
   - toolservers/status
   - memories/status
@@ -103,6 +107,8 @@ rules:
   - kagent.dev
   resources:
   - agents
+  - agentcards
+  - agentregistries
   - modelconfigs
   - toolservers
   - memories

@@ -1,0 +1,119 @@
+---
+# Example 1: Minimal AgentCard for in-cluster Agent
+# This represents a discovered agent with auto-populated service endpoint
+apiVersion: kagent.dev/v1alpha1
+kind: AgentCard
+metadata:
+  name: minimal-agent
+  namespace: default
+spec:
+  # A2A Field: Agent identity name
+  name: minimal-agent
+  
+  # A2A Field: Source workload that created this agent
+  # References the kagent Agent resource
+  sourceRef:
+    apiVersion: kagent.dev/v1alpha1
+    kind: Agent
+    name: minimal-agent
+    namespace: default
+
+---
+# Example 2: Complete AgentCard with all fields
+# This shows a fully populated card with capabilities and metadata
+apiVersion: kagent.dev/v1alpha1
+kind: AgentCard
+metadata:
+  name: complete-agent
+  namespace: default
+  annotations:
+    # Discovery annotations (used by AgentRegistry controller)
+    kagent.dev/register-to-registry: "true"
+    kagent.dev/capabilities: "kubernetes,monitoring,alerting"
+spec:
+  # A2A Field: Agent identity name
+  name: complete-agent
+  
+  # A2A Field: Semantic version of the agent
+  version: "v1.2.3"
+  
+  # A2A Field: Source workload reference
+  # Tracks which Kubernetes resource created this card
+  sourceRef:
+    apiVersion: kagent.dev/v1alpha1
+    kind: Agent
+    name: complete-agent
+    namespace: default
+  
+  # A2A Field: Service endpoints for reaching the agent
+  # Prefer Service DNS names over Pod IPs for stability
+  endpoints:
+    - url: "http://complete-agent.default.svc.cluster.local:8083"
+      protocol: "http"
+      port: 8083
+    - url: "https://complete-agent-external.example.com:443"
+      protocol: "https"
+      port: 443
+  
+  # A2A Field: Capabilities provided by this agent
+  # String list of what the agent can do
+  capabilities:
+    - "kubernetes"
+    - "monitoring"
+    - "alerting"
+    - "incident-response"
+  
+  # A2A Field: Protocol version for compatibility
+  # Defaults to "0.3.0" if not specified
+  a2aVersion: "0.3.0"
+  
+  # A2A Field: Extensibility metadata
+  # Custom key-value pairs for additional agent information
+  metadata:
+    description: "Production monitoring and alerting agent"
+    environment: "production"
+    team: "platform"
+    contact: "platform-team@example.com"
+
+---
+# Example 3: External Agent Card
+# AgentCard for an agent running outside the cluster
+apiVersion: kagent.dev/v1alpha1
+kind: AgentCard
+metadata:
+  name: external-agent
+  namespace: default
+spec:
+  # A2A Field: Agent identity
+  name: external-agent
+  
+  # A2A Field: Version information
+  version: "v2.0.0"
+  
+  # A2A Field: Source reference for external workload
+  # Can reference Deployment, StatefulSet, or custom resources
+  sourceRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: external-agent-deployment
+    namespace: external-agents
+  
+  # A2A Field: External endpoints
+  endpoints:
+    - url: "https://external-agent.example.com/api/v1"
+      protocol: "https"
+      port: 443
+  
+  # A2A Field: Capabilities
+  capabilities:
+    - "external-data-processing"
+    - "third-party-integration"
+  
+  # A2A Field: Protocol version
+  a2aVersion: "0.3.0"
+  
+  # A2A Field: Custom metadata
+  metadata:
+    provider: "external-vendor"
+    sla: "99.9%"
+    region: "us-west-2"
