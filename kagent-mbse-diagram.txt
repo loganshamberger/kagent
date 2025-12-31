@@ -1,0 +1,249 @@
+================================================================================
+                    KAGENT MBSE SYSTEM ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         EXTERNAL SERVICES LAYER                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐           │
+│  │  LLM Providers   │  │ MCP Tool Servers │  │  OCI Registries  │           │
+│  │ (OpenAI,         │  │  (Anthropic,     │  │   (Skills,       │           │
+│  │  Anthropic, etc) │  │   Brave, etc)    │  │   Models)        │           │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘           │
+│                                                                              │
+│                        ┌──────────────────┐                                 │
+│                        │  Vector DB       │                                 │
+│                        │  (Qdrant)        │                                 │
+│                        └──────────────────┘                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    △
+                                    │
+                    ┌───────────────┼───────────────┐
+                    │               │               │
+                    ↓               ↓               ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      KUBERNETES CLUSTER (CORE SYSTEM)                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                      CONTROL PLANE LAYER                             │  │
+│  ├──────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                      │  │
+│  │  ┌──────────────────┐     ┌─────────────────┐                       │  │
+│  │  │    Controller    │────→│  HTTP Server    │                       │  │
+│  │  │   Reconciler     │     │  (Port 8083)    │                       │  │
+│  │  └──────────────────┘     └────────┬────────┘                       │  │
+│  │          │                         │                                │  │
+│  │          │ watches/                │ routes requests                │  │
+│  │          │ reconciles              │                                │  │
+│  │          └─────────────────────────┤                                │  │
+│  │                                    ↓                                │  │
+│  │  ┌──────────────────────────────────────────────┐                   │  │
+│  │  │         A2A Message Multiplexer              │                   │  │
+│  │  │      (Agent-to-Agent Router)                 │                   │  │
+│  │  └──────────────────────────────────────────────┘                   │  │
+│  │                    │                                                │  │
+│  │                    ↓                                                │  │
+│  │  ┌──────────────────────────────────────────────┐                   │  │
+│  │  │      Event Broadcaster / Publisher           │                   │  │
+│  │  │   (Status Changes, Logs, Metrics)            │                   │  │
+│  │  └──────────────────────────────────────────────┘                   │  │
+│  │                                                                      │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                       DATA LAYER                                      │  │
+│  ├──────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                      │  │
+│  │  ┌──────────────────────────┐  ┌──────────────────────────┐          │  │
+│  │  │  Persistent Store        │  │  In-Memory Cache Layer   │          │  │
+│  │  │ (SQLite/PostgreSQL)      │  │  (Session, Config Data)  │          │  │
+│  │  └──────────────────────────┘  └──────────────────────────┘          │  │
+│  │           △ │                          △ │                          │  │
+│  │           │ │ reads/writes             │ │ caches/retrieves         │  │
+│  │           └─┴──────────────────────────┘ │                          │  │
+│  │                                          │                          │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                     ↑                                                       │
+│                     │ syncs state                                           │
+│                     │                                                       │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                      CRD RESOURCES                                    │  │
+│  ├──────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                      │  │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐                           │  │
+│  │  │  Agent   │  │ ModelCfg │  │RemoteMCP │  ┌────────────────┐       │  │
+│  │  │  CRD     │  │   CRD    │  │ Server   │  │ AgentRegistry  │       │  │
+│  │  │          │  │          │  │   CRD    │  │     CRD        │       │  │
+│  │  └──────────┘  └──────────┘  └──────────┘  └────────────────┘       │  │
+│  │       │             ↑              ↑              │                  │  │
+│  │       └─────────────┼──────────────┼──────────────┘                  │  │
+│  │                     │              │                                │  │
+│  │         references  │              │  discovers/manages            │  │
+│  │                     ↓              ↓                                │  │
+│  │              ┌──────────────────────────────┐                       │  │
+│  │              │      AgentCard CRD           │                       │  │
+│  │              │  (Agent Discovery & Status)  │                       │  │
+│  │              └──────────────────────────────┘                       │  │
+│  │                                                                      │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │                    AGENT RUNTIME PODS                                 │  │
+│  ├──────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                      │  │
+│  │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │  │
+│  │  │   Agent Pod 1    │  │   Agent Pod 2    │  │   Agent Pod N    │   │  │
+│  │  │  (ADK Engine)    │  │  (ADK Engine)    │  │  (ADK Engine)    │   │  │
+│  │  └──────────────────┘  └──────────────────┘  └──────────────────┘   │  │
+│  │         │                       │                      │             │  │
+│  │         └───────────────────────┼──────────────────────┘             │  │
+│  │                                 │                                    │  │
+│  │                    receives A2A messages                             │  │
+│  │                    from multiplexer                                  │  │
+│  │                                                                      │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+        △         △                      △              │
+        │         │                      │              │
+        │         │                      │         reports status
+        │         │                      │         publishes events
+        │         │          invokes tools           
+        │         │              │
+  calls │ invokes │ pulls skills  │
+  LLM   │  tools  │ stores/queries
+  APIs  │         │ embeddings
+        │         │              │
+        └─────────┴──────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          USER INTERFACES                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────────┐              ┌──────────────────────────┐    │
+│  │      Web UI              │              │      CLI REPL            │    │
+│  │  (Next.js/React)         │              │      (Go)                │    │
+│  └──────────────────────────┘              └──────────────────────────┘    │
+│         │       │                                    │       │             │
+│         │       └────────────┬───────────────────────┘       │             │
+│         │                    │                               │             │
+│  ┌──────┴─────┬──────────────┴────────────┬──────────────────┴──────┐     │
+│  │            │                           │                        │     │
+│  ↓            ↓                           ↓                        ↓     │
+│ HTTP        WebSocket                   A2A Protocol            Direct   │
+│ GET/POST    Server-Sent Events          Messages                 REST    │
+│             (Streaming)                                          Calls    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                           DATA FLOW SUMMARY
+================================================================================
+
+USER INTERACTION FLOW:
+┌─────────┐  HTTP/WebSocket/A2A  ┌──────────┐  Reconciliation  ┌────────┐
+│   UI    │◄──────────────────────│HTTP Server│◄────────────────│Controller│
+│   CLI   │  Response/Events      │          │  State Sync      │        │
+└─────────┘                       └──────────┘                  └────────┘
+                                      │                            │
+                                      └────────────┬───────────────┘
+                                                   │
+                                          watches CRDs
+                                       queries/caches data
+
+
+AGENT EXECUTION FLOW:
+┌────────┐  A2A Messages  ┌──────────┐  Multiplexes  ┌─────────────┐
+│   UI   │───────────────→│HTTP Server│──────────────→│A2A Router   │
+│   CLI  │                │          │               │            │
+└────────┘                └──────────┘               └──────┬──────┘
+                                                            │
+                                            ┌───────────────┼───────────────┐
+                                            ↓               ↓               ↓
+                                      ┌──────────┐  ┌──────────┐  ┌──────────┐
+                                      │Agent Pod1│  │Agent Pod2│  │Agent PodN│
+                                      │(ADK Eng) │  │(ADK Eng) │  │(ADK Eng) │
+                                      └────┬─────┘  └────┬─────┘  └────┬─────┘
+                                           │             │             │
+                        ┌──────────────────┼─────────────┼─────────────┘
+                        │                  │             │
+                        ↓                  ↓             ↓
+                ┌──────────────────────────────────────────────┐
+                │  External Services                           │
+                │  - LLM APIs (inference/chat)                │
+                │  - MCP Servers (tool invocation)             │
+                │  - OCI Registries (skill/model pulls)        │
+                │  - Vector DB (embeddings storage)            │
+                └──────────────────────────────────────────────┘
+
+STATE MANAGEMENT FLOW:
+┌──────────────────┐  watches/reconciles  ┌──────────────┐
+│  Controller      │◄─────────────────────│ CRD Resources│
+│  Reconciler      │  updates status      │ (K8s API)    │
+└────────┬─────────┘                      └──────────────┘
+         │
+         │ applies changes
+         ↓
+┌──────────────────────────────────────────────────────────┐
+│              Data Layer                                  │
+│  ┌────────────────────────┐  ┌──────────────────────┐   │
+│  │ Persistent Store       │  │ In-Memory Cache      │   │
+│  │ (Agent configs,        │  │ (Session data,       │   │
+│  │  Model settings,       │  │  Query results,      │   │
+│  │  Registry state)       │  │  Recent configs)     │   │
+│  └────────────────────────┘  └──────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
+
+================================================================================
+                      COMPONENT RESPONSIBILITIES
+================================================================================
+
+CONTROLLER (go/cmd/controller):
+  • Watches Agent, ModelConfig, RemoteMCPServer, AgentRegistry CRDs
+  • Reconciles desired state to actual state
+  • Creates/updates AgentCards for agent discovery
+  • Manages Pod lifecycle and configuration
+  • Syncs state to persistent database
+  • Publishes status events
+
+HTTP SERVER (go/internal/httpserver):
+  • Serves REST API endpoints (:8083)
+  • Handles WebSocket connections for streaming events
+  • Routes A2A (Agent-to-Agent) protocol messages
+  • Reads/writes from persistent store and cache
+  • Authenticates/authorizes requests
+
+A2A MUX ROUTER (go/internal/a2a):
+  • Multiplexes A2A messages from UI/CLI to agent pods
+  • Routes inter-agent communication
+  • Maintains agent connection state
+  • Handles message ordering and reliability
+
+AGENT PODS (python/packages/kagent-*):
+  • Runs ADK-based agent runtime
+  • Executes tool invocations via MCP
+  • Makes LLM API calls (OpenAI, Anthropic, etc.)
+  • Stores embeddings in Vector DB
+  • Pulls skills and models from OCI registries
+  • Reports execution status and events back to HTTP server
+
+DATA LAYER:
+  • Persistent Store: Agent configs, execution history, model settings
+  • Cache Layer: Session data, recent queries, active agent state
+  • Event Log: Status changes, errors, audit trail
+
+CRD RESOURCES:
+  • Agent: Defines agent specification (name, model, tools, prompts)
+  • ModelConfig: LLM provider configuration and parameters
+  • RemoteMCPServer: External MCP tool server connections
+  • AgentRegistry: Central registry for discovering agents
+  • AgentCard: Auto-generated agent metadata and status
+
+USER INTERFACES:
+  • Web UI: Next.js/React frontend for interactive agent management
+  • CLI: Go-based REPL for command-line agent interaction
+  • Both can use HTTP REST, WebSocket SSE, or direct A2A protocol
+
+================================================================================

@@ -1,0 +1,94 @@
+@startuml kagent_mbse_overview
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam classBackgroundColor #F0F0F0
+skinparam classBorderColor #333333
+skinparam componentStyle rectangle
+
+title KAGENT MBSE System Architecture
+
+package "🌐 External Services" #FFFFCC {
+  component [LLM Providers\n(OpenAI, Anthropic)] as LLM
+  component [MCP Tool\nServers] as MCP_TOOLS
+  component [OCI Registries\n(Skills/Models)] as OCI
+  component [Vector DB\n(Qdrant)] as VECTOR_DB
+}
+
+package "☸️ Kubernetes Cluster" #E1F5FF {
+  
+  package "📊 Control Plane" #FFF9E6 {
+    component [Controller\nReconciler] as CM
+    component [HTTP Server\n(Port 8083)] as HS
+    component [A2A Mux\nRouter] as A2A_MUX
+    component [Event\nBroadcaster] as EVENTS
+  }
+
+  package "💾 Data Layer" #F5F5F5 {
+    database [Persistent Store\n(SQLite/PostgreSQL)] as DB
+    database [In-Memory\nCache] as CACHE
+  }
+
+  package "🤖 Agent Runtime" #E8F5E9 {
+    component [Agent Pod 1\n(ADK Engine)] as AP1
+    component [Agent Pod 2\n(ADK Engine)] as AP2
+    component [Agent Pod N\n(ADK Engine)] as APN
+  }
+
+  package "🗂️ CRD Resources" #FCE4EC {
+    component [Agent\nCRD] as AGENT_CRD
+    component [ModelConfig\nCRD] as MC_CRD
+    component [RemoteMCPServer\nCRD] as MCP_CRD
+    component [AgentRegistry\nCRD] as REG_CRD
+    component [AgentCard\nCRD] as CARD_CRD
+  }
+}
+
+package "👥 User Interfaces" #F3E5F5 {
+  component [Web UI\n(Next.js/React)] as UI
+  component [CLI REPL\n(Go)] as CLI
+}
+
+' === Control Plane Orchestration ===
+CM --> AGENT_CRD : watches/reconciles
+CM --> MC_CRD : watches/reconciles
+CM --> MCP_CRD : watches/reconciles
+CM --> REG_CRD : watches/reconciles
+CM --> AP1 : deploys/manages
+CM --> AP2 : deploys/manages
+CM --> DB : syncs state
+CM --> EVENTS : publishes events
+
+HS --> DB : reads/writes
+HS --> CACHE : caches responses
+HS --> CM : queries state
+HS --> A2A_MUX : routes A2A requests
+HS --> EVENTS : receives events
+
+A2A_MUX --> AP1 : forwards messages
+A2A_MUX --> AP2 : forwards messages
+A2A_MUX --> APN : forwards messages
+
+' === Agent Runtime Capabilities ===
+AP1 --> LLM : calls LLM APIs
+AP1 --> MCP_TOOLS : invokes tools
+AP1 --> OCI : pulls skills/models
+AP1 --> VECTOR_DB : stores/queries embeddings
+AP1 --> HS : reports status/events
+
+AP2 --> LLM : calls LLM APIs
+AP2 --> MCP_TOOLS : invokes tools
+
+' === CRD Dependencies ===
+AGENT_CRD --> MC_CRD : references
+AGENT_CRD --> MCP_CRD : references
+AGENT_CRD --> CARD_CRD : creates/owns
+REG_CRD --> CARD_CRD : discovers/manages
+
+' === User Interactions ===
+UI --> HS : HTTP GET/POST\nWebSocket SSE
+CLI --> HS : HTTP REST\nA2A protocol
+
+UI --> A2A_MUX : direct A2A\nmessages
+CLI --> A2A_MUX : direct A2A\nmessages
+
+@enduml
